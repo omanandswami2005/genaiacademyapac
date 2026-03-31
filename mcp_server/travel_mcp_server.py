@@ -58,7 +58,11 @@ async def _fetch_country_info(country_name: str) -> dict:
 
 async def _fetch_wikipedia_summary(topic: str) -> dict:
     """Fetch Wikipedia summary for a given topic."""
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    headers = {
+        "User-Agent": "TravelGuideAgent/1.0 (https://github.com/genaiacademyapac; 2005omanandswami@gmail.com)",
+        "Api-User-Agent": "TravelGuideAgent/1.0 (https://github.com/genaiacademyapac; 2005omanandswami@gmail.com)",
+    }
+    async with httpx.AsyncClient(timeout=10.0, headers=headers) as client:
         resp = await client.get(
             "https://en.wikipedia.org/api/rest_v1/page/summary/"
             + topic.replace(" ", "_"),
