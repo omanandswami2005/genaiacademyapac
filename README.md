@@ -1,50 +1,73 @@
 # Travel Guide Agent — Gen AI Academy APAC
 
-An AI-powered Travel Guide Agent built with **Google Agent Development Kit (ADK)** that uses **Model Context Protocol (MCP)** to connect to external data sources — a custom MCP server providing real-time country information and Wikipedia summaries.
+> **Track 2: MCP + ADK** | Submitted for Gen AI Academy APAC Hackathon
+
+An AI-powered Travel Guide Agent built with **Google Agent Development Kit (ADK)** and **Gemini 2.5 Flash**, connected to a custom **MCP server** that fetches real-time country data and Wikipedia summaries.
+
+**Live Demo:** https://travel-guide-agent-rnedu666qq-uc.a.run.app/dev-ui/
+
+---
+
+## How It Works
+
+The agent uses **Model Context Protocol (MCP)** — a standardized way for AI agents to connect to external tools and data sources. When you ask it about a country, it:
+
+1. Calls `get_country_info` → REST Countries API (population, capital, currency, languages)
+2. Calls `get_wikipedia_summary` → Wikipedia REST API (rich contextual description)
+3. Calls `get_travel_advisory` → generates region-specific tips from the country data
+4. Combines all results into a helpful, formatted response
 
 ## Architecture
 
 ```
-┌──────────────────────────┐
-│   ADK Travel Guide Agent │
-│   (Gemini 2.5 Flash)     │
-│                          │
-│  "Ask me about any       │
-│   country or place!"     │
-└──────────┬───────────────┘
-           │ MCP (stdio)
-           ▼
-┌──────────────────────────┐
-│   Travel MCP Server      │
-│                          │
-│  Tools:                  │
-│  • get_country_info()    │
-│  • get_wikipedia_summary │
-│  • get_travel_advisory() │
-└──────────┬───────────────┘
-           │ HTTP
-           ▼
-┌──────────────────────────┐
-│  External APIs           │
-│  • REST Countries API    │
-│  • Wikipedia API         │
-└──────────────────────────┘
+┌──────────────────────────────────────┐
+│   You (User)                         │
+│   "Tell me about Japan"              │
+└──────────────┬───────────────────────┘
+               │ HTTP / WebSocket
+               ▼
+┌──────────────────────────────────────┐
+│   ADK Travel Guide Agent             │
+│   Model: Gemini 2.5 Flash (Vertex AI)│
+│   Hosted: Google Cloud Run           │
+└──────────────┬───────────────────────┘
+               │ MCP — stdio transport
+               ▼
+┌──────────────────────────────────────┐
+│   Travel MCP Server                  │
+│                                      │
+│  • get_country_info(country_name)    │
+│  • get_wikipedia_summary(topic)      │
+│  • get_travel_advisory(country_info) │
+└──────┬───────────────┬───────────────┘
+       │ HTTPS         │ HTTPS
+       ▼               ▼
+┌─────────────┐  ┌─────────────────────┐
+│ REST        │  │ Wikipedia REST API  │
+│ Countries   │  │ /page/summary/{topic}│
+│ API v3.1    │  └─────────────────────┘
+└─────────────┘
 ```
 
 ## Features
 
-- **Country Information**: Get detailed info about any country including capital, population, languages, currencies, and more via REST Countries API
-- **Wikipedia Summaries**: Fetch Wikipedia summaries about any topic — cities, landmarks, cultures, history
-- **Travel Advisory**: Get travel tips based on country region and details
-- **MCP Integration**: Clean separation between AI reasoning (ADK Agent) and data retrieval (MCP Server)
+- **Real-time country data** — capital, population, languages, currencies, timezones, borders
+- **Wikipedia summaries** — rich contextual descriptions for any place or landmark
+- **Travel advisories** — region-specific tips (visas, transport passes, vaccinations, etc.)
+- **Clean MCP architecture** — agent reasoning is fully decoupled from data retrieval
+- **ADK web UI** — built-in chat interface served by Cloud Run
 
 ## Tech Stack
 
-- **Google ADK** — Agent Development Kit for building the AI agent
-- **Gemini 2.5 Flash** — LLM powering the agent via Vertex AI
-- **MCP (Model Context Protocol)** — Standardized protocol connecting agent to tools
-- **Cloud Run** — Serverless deployment on Google Cloud
-- **Python 3.12** — Runtime
+| Component | Technology |
+|-----------|-----------|
+| AI Agent | Google ADK (LlmAgent) |
+| LLM | Gemini 2.5 Flash via Vertex AI |
+| Tool Protocol | MCP (Model Context Protocol) — stdio |
+| Data Sources | REST Countries API, Wikipedia REST API |
+| Serving | FastAPI + uvicorn |
+| Deployment | Google Cloud Run (us-central1) |
+| GCP Project | genaiacademyapac-omni |
 
 ## Project Structure
 
@@ -52,13 +75,13 @@ An AI-powered Travel Guide Agent built with **Google Agent Development Kit (ADK)
 genaiacademyapac/
 ├── travel_guide_agent/        # ADK Agent package
 │   ├── __init__.py
-│   └── agent.py               # Agent definition with MCP toolset
+│   └── agent.py               # LlmAgent with McpToolset
 ├── mcp_server/
-│   └── travel_mcp_server.py   # Custom MCP server with travel tools
-├── main.py                    # FastAPI entry point for Cloud Run
-├── requirements.txt           # Python dependencies
-├── Dockerfile                 # Container image for Cloud Run
-├── .gitignore
+│   └── travel_mcp_server.py   # Custom MCP server — 3 tools
+├── main.py                    # FastAPI entry point (Cloud Run)
+├── Dockerfile                 # python:3.12-slim container
+├── .dockerignore
+├── requirements.txt
 └── README.md
 ```
 
@@ -67,25 +90,20 @@ genaiacademyapac/
 ### Prerequisites
 
 - Python 3.12+
-- Node.js (for npx, if using community MCP servers)
-- Google Cloud SDK (gcloud CLI)
+- Google Cloud SDK (`gcloud auth application-default login`)
 
 ### Setup
 
 ```bash
-# Clone the repo
 git clone <repo-url>
 cd genaiacademyapac
 
-# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# .venv\Scripts\activate   # Windows
+source .venv/bin/activate      # Linux/Mac
+# .venv\Scripts\activate       # Windows
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Set environment variables
 export GOOGLE_CLOUD_PROJECT=genaiacademyapac-omni
 export GOOGLE_CLOUD_LOCATION=us-central1
 export GOOGLE_GENAI_USE_VERTEXAI=True
@@ -94,36 +112,50 @@ export GOOGLE_GENAI_USE_VERTEXAI=True
 ### Run locally
 
 ```bash
-# Using ADK web UI
+# ADK web UI at http://localhost:8000/dev-ui/
 adk web
 
 # Or run the FastAPI server directly
 python main.py
 ```
 
-### Test the agent
+### Example queries
 
-Ask questions like:
-- "Tell me about Japan"
-- "What's the capital of Brazil and what are the must-see places?"
-- "Give me a travel guide for visiting France"
-- "What languages do they speak in Switzerland?"
+```
+Tell me about Japan
+What's the capital of Brazil and what should I visit?
+Give me a travel guide for France
+What languages do they speak in Switzerland?
+Tell me about the Eiffel Tower
+```
 
 ## Deployment
 
 ```bash
-# Deploy to Cloud Run
 gcloud run deploy travel-guide-agent \
   --source . \
   --region us-central1 \
   --project genaiacademyapac-omni \
   --allow-unauthenticated \
+  --memory=1Gi \
+  --timeout=300 \
   --set-env-vars="GOOGLE_CLOUD_PROJECT=genaiacademyapac-omni,GOOGLE_CLOUD_LOCATION=us-central1,GOOGLE_GENAI_USE_VERTEXAI=True"
 ```
 
-## Cloud Run URL
+**Live URL:** https://travel-guide-agent-rnedu666qq-uc.a.run.app
 
-> **Live:** https://travel-guide-agent-rnedu666qq-uc.a.run.app
+## API Usage
+
+```bash
+# Create a session
+curl -X POST https://travel-guide-agent-rnedu666qq-uc.a.run.app/apps/travel_guide_agent/users/{user_id}/sessions \
+  -H "Content-Type: application/json" -d '{}'
+
+# Send a message (returns SSE stream)
+curl -X POST https://travel-guide-agent-rnedu666qq-uc.a.run.app/run_sse \
+  -H "Content-Type: application/json" \
+  -d '{"app_name":"travel_guide_agent","user_id":"{user_id}","session_id":"{session_id}","new_message":{"role":"user","parts":[{"text":"Tell me about Japan"}]}}'
+```
 
 ## License
 
