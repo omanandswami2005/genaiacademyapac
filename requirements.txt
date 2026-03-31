@@ -1,0 +1,5 @@
+google-adk
+httpx
+mcp
+uvicorn
+fastapi
