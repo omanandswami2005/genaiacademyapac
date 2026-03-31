@@ -123,7 +123,7 @@ gcloud run deploy travel-guide-agent \
 
 ## Cloud Run URL
 
-> Deployed at: _[to be updated after deployment]_
+> **Live:** https://travel-guide-agent-rnedu666qq-uc.a.run.app
 
 ## License
 
